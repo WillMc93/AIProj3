@@ -11,7 +11,7 @@ from my_planning_graph import PlanningGraph
 
 from functools import lru_cache
 
-import itertools
+from itertools import product
 
 
 class AirCargoProblem(Problem):
@@ -55,7 +55,7 @@ class AirCargoProblem(Problem):
 			:return: list of Action objects
 			"""
 			loads = []
-			for c, p, a in itertools.product(self.cargos, self.planes, self.airports):
+			for c, p, a in product(self.cargos, self.planes, self.airports):
 
 				precond_pos = [expr("At({}, {})".format(c, a)),
 							   expr("At({}, {})".format(p, a))]
@@ -78,7 +78,7 @@ class AirCargoProblem(Problem):
 			:return: list of Action objects
 			"""
 			unloads = []
-			for c, p, a in itertools.product(self.cargos, self.planes, self.airports):
+			for c, p, a in product(self.cargos, self.planes, self.airports):
 
 				precond_pos = [expr("In({}, {})".format(c, p)),
 							   expr("At({}, {})".format(p, a))]
@@ -214,8 +214,12 @@ class AirCargoProblem(Problem):
 		conditions by ignoring the preconditions required for an action to be
 		executed.
 		"""
-		# TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
-		count = 0
+		# Get the set of current conditions
+		current_state = set(decode_state(node.state, self.state_map).pos)
+		# Get the set of goals
+		goals = set(self.goal)
+		# Return the number of goals that have not been achieved
+		count = len(goals - current_state)
 		return count
 
 
