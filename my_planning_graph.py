@@ -417,13 +417,13 @@ class PlanningGraph():
                 return True
 
         # Make sure a1's negative effects don't interfere with a2's positive preconditions
-        for effect in node_a1.action.effect_neg:
-            if effect in node_a2.action.precond_add:
+        for effect in node_a1.action.effect_rem:
+            if effect in node_a2.action.precond_pos:
                 return True
 
         # Make sure a2's negative effects don't interfere with a1's positive preconditions
-        for effect in node_a2.action.effect_neg:
-            if effect in node_a1.action.precond_add:
+        for effect in node_a2.action.effect_rem:
+            if effect in node_a1.action.precond_pos:
                 return True
 
         return False
