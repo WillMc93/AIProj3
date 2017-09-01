@@ -3,6 +3,7 @@ from aimacode.search import Problem
 from aimacode.utils import expr
 from lp_utils import decode_state
 
+import itertools as it
 
 class PgNode():
     """Base class for planning graph nodes.
@@ -303,15 +304,15 @@ class PlanningGraph():
         :return:
             adds A nodes to the current level in self.a_levels[level]
         """
-        a_nodes = []
+        a_nodes = set()
         for action in self.all_actions:
-            node_a = PgNode_a(action)
+            a_node = PgNode_a(action)
 
-            if node_a.prenodes.issubset(self.s_levels[level]):
-                a_nodes.append(node_a)
-                for node_s in self.s_levels[level]:
-                    node_s.children.add(node_a)
-                    node_a.parents.add(node_s)
+            if a_node.prenodes.issubset(self.s_levels[level]):
+                a_nodes.add(a_node)
+                for s_node in self.s_levels[level]:
+                    s_node.children.add(a_node)
+                    a_node.parents.add(s_node)
 
         self.a_levels.append(a_nodes)
 
@@ -325,14 +326,14 @@ class PlanningGraph():
             adds S nodes to the current level in self.s_levels[level]
         """
 
-        s_nodes = []
-        for node_a in self.a_levels[level - 1]:
-            for node_s in node_a.effnodes:
-                s_nodes.add(node_s)
-                node_s.parents.add(node_a)
-                node_a.children.add(node_s)
+        s_nodes = set()
+        for a_node in self.a_levels[level - 1]:
+            for s_node in a_node.effnodes:
+                s_nodes.add(s_node)
+                s_node.parents.add(a_node)
+                a_node.children.add(s_node)
 
-        self.s_levels.append(s_nodesl)
+        self.s_levels.append(s_nodes)
 
     def update_a_mutex(self, nodeset):
         """ Determine and update sibling mutual exclusion for A-level nodes
@@ -389,9 +390,9 @@ class PlanningGraph():
             if effect in node_a2.action.effect_rem:
                 return True
 
-        # And make sure that the negative effects of node_a1 do not interfer with node_a2's negative effects
-        for effect in node_a1.action.effect_rem:
-            if effect in node_a2.action.effect_add:
+        # And make sure that the positve effects of node_a2 do not interfer with node_a1's negative effects
+        for effect in node_a2.action.effect_add:
+            if effect in node_a1.action.effect_rem:
                 return True
 
         return False
@@ -428,6 +429,7 @@ class PlanningGraph():
 
         return False
 
+
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
         Test a pair of actions for mutual exclusion, returning True if one of
@@ -439,10 +441,10 @@ class PlanningGraph():
         :return: bool
         """
 
-        for precond_a1 in node_a1.parents:
-            for precond_a2 in node_a2.parents:
-                if precond_a1.is_mutex(precond_a2):
-                    return True
+        # product from itertools
+        for precond_a1, precond_a2 in it.product(node_a1.parents, node_a2.parents):
+            if precond_a1.is_mutex(precond_a2):
+                return True
 
 
     def update_s_mutex(self, nodeset: set):
@@ -474,10 +476,7 @@ class PlanningGraph():
         :return: bool
         """
 
-        if node_s1.symbol == node_s2.symbol and node_s1.is_pos != node_s2.is_pos:
-            return True
-
-        return False
+        return node_s1.symbol == node_s2.symbol and node_s1.is_pos != node_s2.is_pos
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
         """
@@ -492,10 +491,9 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        for precond_s1 in node_s1.parents:
-            for precond_s2 in node_s2.parents:
-                if not precond_s1.is_mutex(precond_s2):
-                    return False
+        for precond_s1, precond_s2 in it.product(node_s1.parents, node_s2.parents):
+            if not precond_s1.is_mutex(precond_s2):
+                return False
 
         return True
 
@@ -507,14 +505,12 @@ class PlanningGraph():
         level_sum = 0
 
         for goal in self.problem.goal:
-            goal_found = False
-            for level in range(len(self.s_levels)):
-                for state in self.s_levels[level]:
-                    if goal == state.literal:
-                        goal_found = True
-                        level_sum += level
-                        break
-                if goal_found:
-                    break
+            for level, states in enumerate(self.s_levels):
+                # Get the literal (method modified from forums)
+                # Essentially, for state in states store expr(symbol) of expr(~symbol) depending on is_pos
+                literals = [expr(state.symbol) if state.is_pos else expr('~{}'.format(state.symbol)) for state in states]
+                if {goal}.issubset([literal for literal in literals]):
+                    level_sum += level
+                    break # Goal found; stop looking
 
         return level_sum
