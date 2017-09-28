@@ -56,7 +56,7 @@ class AirCargoProblem(Problem):
 			"""
 			loads = []
 			for c, p, a in product(self.cargos, self.planes, self.airports):
-
+				# Define the load action using python expressions
 				precond_pos = [expr("At({}, {})".format(c, a)),
 							   expr("At({}, {})".format(p, a))]
 				precond_neg = []
@@ -79,7 +79,7 @@ class AirCargoProblem(Problem):
 			"""
 			unloads = []
 			for c, p, a in product(self.cargos, self.planes, self.airports):
-
+				# Define the unload action using python expressions
 				precond_pos = [expr("In({}, {})".format(c, p)),
 							   expr("At({}, {})".format(p, a))]
 				precond_neg = []
@@ -131,20 +131,21 @@ class AirCargoProblem(Problem):
 		kb = PropKB()
 		kb.tell(decode_state(state, self.state_map).pos_sentence())
 
+		# For each action in the list,
 		for act in self.actions_list:
 			possible = True
+			# If the positive preconditions are not in kb.clauses, the action is impossible
 			for clause in act.precond_pos:
 				if clause not in kb.clauses:
 					possible = False
+			# If the negative preconditions are not in kb.clauses, the action is impossible
 			for clause in act.precond_neg:
 				if clause in kb.clauses:
 					possible = False
 
 			if possible:
+				# If the aciton is possible, append it to our list of possible actions.
 				possible_actions.append(act)
-
-		return possible_actions
-
 
 		return possible_actions
 
@@ -161,6 +162,8 @@ class AirCargoProblem(Problem):
 		new_state = FluentState([], [])
 		prev_state = decode_state(state, self.state_map)
 
+		# Given fluents from the previous state,
+		# if we don't already have an action for that fluent add it.
 		for fluent in prev_state.pos:
 			if fluent not in action.effect_rem:
 				new_state.pos.append(fluent)
